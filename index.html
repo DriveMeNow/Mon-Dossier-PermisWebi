@@ -632,7 +632,7 @@ const FOLDERS = [
     emoji: '🏛️',
     desc: 'AIPC, récépissé d\'inscription ANTS',
     warning: null,
-    expectedDocs: ['AIPC (Attestation d\'inscription au permis)', 'Récépissé d\'inscription ANTS'],
+    expectedDocs: ['Récépissé d\'inscription ANTS', 'AIPC (Attestation d\'inscription au permis)'],
     optional: false,
     hasDate: false
   },
@@ -865,6 +865,7 @@ async function renderHome() {
     card.addEventListener('click', () => openFolder(f.id));
     grid.appendChild(card);
   });
+  await refreshTimeline();
 }
 
 /* ══════════════════════════════════════════════
@@ -921,7 +922,7 @@ async function renderTimeline() {
           <span class="tl-name">${f.label}</span>
           ${statusText ? `<span class="tl-status ${statusClass}">${statusText}</span>` : ''}
         </div>
-        ${f.hasDate ? `
+        ${f.hasDate && !isExempt ? `
           <div class="tl-date-row">
             ${dateLabel
               ? `<span class="tl-date-chip ${isPast ? (isDone ? 'chip-done' : 'chip-warn') : 'chip-future'}" data-date-fid="${f.id}">📅 ${dateLabel}</span>`
@@ -954,6 +955,13 @@ async function renderTimeline() {
   list.querySelectorAll('.tl-content').forEach(el => {
     el.addEventListener('click', () => openFolder(el.dataset.fid));
   });
+}
+
+function isTlOpen() {
+  return document.getElementById('timeline-list').classList.contains('open');
+}
+async function refreshTimeline() {
+  if (isTlOpen()) await renderTimeline();
 }
 
 // Toggle ouverture/fermeture timeline
@@ -998,11 +1006,12 @@ async function openFolder(folderId) {
     const ex = loadExempt();
     exemptCheck.classList.toggle('checked', !!ex[folderId]);
     exemptCheck.textContent = ex[folderId] ? '✓' : '';
-    exemptInner.onclick = () => {
+    exemptInner.onclick = async () => {
       toggleExempt(folderId);
       const newEx = loadExempt();
       exemptCheck.classList.toggle('checked', !!newEx[folderId]);
       exemptCheck.textContent = newEx[folderId] ? '✓' : '';
+      await refreshTimeline();
     };
   } else {
     exemptToggle.classList.remove('visible');
@@ -1096,6 +1105,7 @@ document.getElementById('file-input').addEventListener('change', async e => {
       data:      base64
     });
     await renderFolderDocs(currentFolder);
+    await refreshTimeline();
   } catch (err) {
     console.error(err);
     alert('Erreur lors de l\'ajout du document. Réessaie.');
@@ -1133,6 +1143,7 @@ document.getElementById('btn-modal-delete').addEventListener('click', async () =
   await dbDelete(modalDocId);
   closeModal();
   await renderFolderDocs(currentFolder);
+  await refreshTimeline();
 });
 
 /* ══════════════════════════════════════════════
