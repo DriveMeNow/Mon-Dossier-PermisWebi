@@ -135,8 +135,53 @@
       min-width: 28px; text-align: center;
     }
     .folder-count.empty { background: transparent; border-color: var(--border); color: var(--muted); }
+    .folder-count.partial { background: var(--yellow-soft); border-color: rgba(255,190,0,0.5); color: var(--dark); }
+    .folder-count.done { background: var(--ok-soft); border-color: rgba(29,158,117,0.4); color: var(--ok); }
+    .folder-count.exempt-badge { background: var(--ok-soft); border-color: rgba(29,158,117,0.4); color: var(--ok); font-size: 10px; }
+    .folder-card.complete { border-color: rgba(29,158,117,0.5); }
     .folder-name { font-size: 12px; font-weight: 800; color: var(--text); line-height: 1.3; }
     .folder-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+    /* Exemption toggle */
+    .exempt-toggle {
+      background: #f0fdf4; border: 1.5px solid rgba(29,158,117,0.3);
+      border-radius: var(--radius-sm); padding: 13px 14px;
+      margin-bottom: 16px; display: none;
+    }
+    .exempt-toggle.visible { display: block; }
+    .exempt-toggle-inner {
+      display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
+    }
+    .exempt-check {
+      width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0; margin-top: 1px;
+      border: 2px solid rgba(29,158,117,0.5); background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--ok);
+      transition: background .2s, border-color .2s;
+    }
+    .exempt-check.checked { background: var(--ok); border-color: var(--ok); color: #fff; }
+    .exempt-label { font-size: 12px; font-weight: 700; color: #166534; line-height: 1.5; }
+
+    /* Expected docs list */
+    .expected-docs {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .expected-docs-title {
+      font-size: 11px; font-weight: 800; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+    }
+    .expected-doc-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; color: var(--text);
+      padding: 5px 0; border-bottom: 1px solid var(--border);
+    }
+    .expected-doc-item:last-child { border: none; padding-bottom: 0; }
+    .expected-doc-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(255,190,0,0.6);
+    }
 
     /* Local storage notice */
     .local-notice {
@@ -359,6 +404,17 @@
 
     <div class="folder-warning" id="fv-warning"></div>
 
+    <!-- Case à cocher exemption (sections optionnelles) -->
+    <div class="exempt-toggle" id="fv-exempt-toggle">
+      <div class="exempt-toggle-inner" id="fv-exempt-inner">
+        <div class="exempt-check" id="fv-exempt-check"></div>
+        <span class="exempt-label" id="fv-exempt-label"></span>
+      </div>
+    </div>
+
+    <!-- Docs attendus -->
+    <div class="expected-docs" id="fv-expected"></div>
+
     <button class="btn-add-doc" id="btn-add-doc">
       📷 Ajouter un document
     </button>
@@ -425,59 +481,126 @@ const FOLDERS = [
     id: 'decision',
     label: 'La décision',
     emoji: '📋',
-    desc: 'Arrêté, jugement, lettre officielle...',
-    warning: null
+    desc: 'Document(s) reçu(s) — lettre 48SI, jugement, arrêté préfectoral...',
+    warning: null,
+    expectedDocs: ['Document de décision (lettre, jugement ou arrêté)'],
+    freeCount: true,
+    optional: false
   },
   {
     id: 'psycho',
     label: 'Psychotechniques',
     emoji: '🧪',
-    desc: 'Attestation de résultats du centre agréé',
-    warning: '⚠️ Valables 6 mois. Vérifie la date avant ta visite médicale.'
+    desc: 'Convocation + résultats du bilan',
+    warning: '⚠️ Résultats valables 6 mois. Vérifie la date avant ta visite médicale.',
+    expectedDocs: ['Convocation au bilan psychotechnique', 'Résultats du bilan psychotechnique'],
+    optional: true,
+    optionalLabel: 'Non requis dans mon cas (pas d\'alcool/stups et suspension < 6 mois)'
   },
   {
     id: 'medical',
     label: 'Visite médicale',
     emoji: '🏥',
-    desc: 'Certificat médical, avis commission + analyses',
-    warning: '⚠️ Les analyses biologiques ne sont valables que 15 jours après le prélèvement. Vérifie la date avant ton rendez-vous.'
+    desc: 'Convocation + certificat médical (cerfa)',
+    warning: null,
+    expectedDocs: ['Convocation à la visite médicale', 'Certificat médical d\'aptitude (cerfa signé)'],
+    optional: false
+  },
+  {
+    id: 'analyses',
+    label: 'Analyses biologiques',
+    emoji: '🔬',
+    desc: 'Résultats des analyses sang / urine',
+    warning: '⚠️ Valables 15 jours seulement après le prélèvement.',
+    expectedDocs: ['Résultats des analyses biologiques'],
+    optional: true,
+    optionalLabel: 'Non requises dans mon cas'
   },
   {
     id: 'stage',
-    label: 'Stage',
+    label: 'Stage de sensibilisation',
     emoji: '🏛️',
-    desc: 'Attestation de stage (si ordonné par le juge)',
-    warning: null
+    desc: 'Convocation + attestation de participation',
+    warning: null,
+    expectedDocs: ['Convocation au stage de sensibilisation', 'Attestation de participation au stage'],
+    optional: true,
+    optionalLabel: 'Aucun stage ne m\'a été ordonné par le juge'
   },
   {
     id: 'ants',
     label: 'ANTS & NEPH',
     emoji: '🪪',
     desc: 'AIPC, récépissé d\'inscription ANTS',
-    warning: null
+    warning: null,
+    expectedDocs: ['AIPC (Attestation d\'inscription au permis)', 'Récépissé d\'inscription ANTS'],
+    optional: false
   },
   {
     id: 'code',
     label: 'Code de la route',
     emoji: '📝',
-    desc: 'Réussite à l\'examen, convocation',
-    warning: '✓ Le code est valable 5 ans.'
+    desc: 'Convocation + attestation de réussite',
+    warning: '✓ Le code est valable 5 ans.',
+    expectedDocs: ['Convocation à l\'examen du code', 'Attestation de réussite au code'],
+    optional: false
   },
   {
     id: 'examen',
     label: 'Examen pratique',
     emoji: '🚗',
-    desc: 'Convocation, CEPC (permis provisoire)',
-    warning: null
+    desc: 'Convocation + CEPC (permis provisoire)',
+    warning: null,
+    expectedDocs: ['Convocation à l\'examen pratique', 'CEPC ou permis provisoire'],
+    optional: false
   },
   {
     id: 'permis',
     label: 'Mon permis',
     emoji: '🏆',
     desc: 'Titre sécurisé du permis de conduire',
-    warning: null
+    warning: null,
+    expectedDocs: ['Titre sécurisé du permis de conduire'],
+    optional: false
+  },
+  {
+    id: 'autres',
+    label: 'Autres documents',
+    emoji: '📎',
+    desc: 'Tout document important pour ton dossier',
+    warning: null,
+    expectedDocs: [],
+    freeCount: true,
+    optional: false,
+    noGauge: true
   }
 ];
+
+/* ══════════════════════════════════════════════
+   EXEMPTIONS (localStorage)
+══════════════════════════════════════════════ */
+const EXEMPT_KEY = 'md_exempt_v1';
+function loadExempt() {
+  try { return JSON.parse(localStorage.getItem(EXEMPT_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveExempt(ex) { localStorage.setItem(EXEMPT_KEY, JSON.stringify(ex)); }
+function toggleExempt(folderId) {
+  const ex = loadExempt();
+  ex[folderId] = !ex[folderId];
+  saveExempt(ex);
+}
+
+/* Calcul jauge : retourne { done, total } */
+function gaugeCalc(counts, exempt) {
+  let total = 0, done = 0;
+  FOLDERS.forEach(f => {
+    if (f.noGauge) return;
+    if (exempt[f.id]) return; // exempté → hors calcul
+    const expected = f.freeCount ? 1 : f.expectedDocs.length;
+    total += expected;
+    done  += Math.min(counts[f.id] || 0, expected);
+  });
+  return { done, total };
+}
 
 /* ══════════════════════════════════════════════
    INDEXEDDB
@@ -584,30 +707,44 @@ let modalDocId    = null;
 ══════════════════════════════════════════════ */
 async function renderHome() {
   const counts = await dbGetAllCounts();
-  const filled = FOLDERS.filter(f => (counts[f.id] || 0) > 0).length;
-  const pct    = Math.round((filled / FOLDERS.length) * 100);
-  const circ   = 2 * Math.PI * 74; // r=74
+  const exempt = loadExempt();
+  const { done, total } = gaugeCalc(counts, exempt);
+  const pct  = total > 0 ? Math.round((done / total) * 100) : 0;
+  const circ = 2 * Math.PI * 74;
 
-  // Mise à jour jauge
+  // Jauge
   document.getElementById('ring-pct').textContent = pct + '%';
-  document.getElementById('ring-fill').style.strokeDashoffset =
-    circ * (1 - filled / FOLDERS.length);
+  document.getElementById('ring-fill').style.strokeDashoffset = circ * (1 - done / (total || 1));
   document.getElementById('ring-sub').innerHTML =
-    `<strong>${filled}</strong> dossier${filled > 1 ? 's' : ''} sur <strong>${FOLDERS.length}</strong> contien${filled > 1 ? 'nent' : 't'} des documents`;
+    `<strong>${done}</strong> / <strong>${total}</strong> documents fournis`;
 
   // Grille
   const grid = document.getElementById('folder-grid');
   grid.innerHTML = '';
   FOLDERS.forEach(f => {
-    const count = counts[f.id] || 0;
-    const card  = document.createElement('div');
-    card.className = 'folder-card' + (count > 0 ? ' has-docs' : '');
+    const uploaded = counts[f.id] || 0;
+    const isExempt = !!exempt[f.id];
+    const expected = f.noGauge ? 0 : (f.freeCount ? 1 : f.expectedDocs.length);
+    const isDone   = isExempt || (expected > 0 && uploaded >= expected) || (f.noGauge && uploaded > 0);
+
+    let badgeClass, badgeText;
+    if (isExempt) {
+      badgeClass = 'exempt-badge'; badgeText = '✓ Exempté';
+    } else if (f.noGauge) {
+      badgeClass = uploaded > 0 ? 'partial' : 'empty';
+      badgeText  = uploaded > 0 ? uploaded + ' doc' + (uploaded > 1 ? 's' : '') : '—';
+    } else {
+      const d = Math.min(uploaded, expected);
+      badgeClass = d >= expected && expected > 0 ? 'done' : d > 0 ? 'partial' : 'empty';
+      badgeText  = d === 0 ? '—' : d + '/' + expected;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'folder-card' + (uploaded > 0 || isExempt ? ' has-docs' : '') + (isDone ? ' complete' : '');
     card.innerHTML = `
       <div class="folder-card-top">
         <span class="folder-emoji">${f.emoji}</span>
-        <span class="folder-count ${count === 0 ? 'empty' : ''}">
-          ${count === 0 ? '—' : count + ' doc' + (count > 1 ? 's' : '')}
-        </span>
+        <span class="folder-count ${badgeClass}">${badgeText}</span>
       </div>
       <div class="folder-name">${f.label}</div>
       <div class="folder-desc">${f.desc}</div>`;
@@ -635,11 +772,44 @@ async function openFolder(folderId) {
 
   // Warning
   const warnEl = document.getElementById('fv-warning');
-  if (folder.warning) {
-    warnEl.textContent = folder.warning;
-    warnEl.classList.add('visible');
+  if (folder.warning) { warnEl.textContent = folder.warning; warnEl.classList.add('visible'); }
+  else { warnEl.classList.remove('visible'); }
+
+  // Exemption toggle
+  const exemptToggle = document.getElementById('fv-exempt-toggle');
+  const exemptInner  = document.getElementById('fv-exempt-inner');
+  const exemptCheck  = document.getElementById('fv-exempt-check');
+  const exemptLabel  = document.getElementById('fv-exempt-label');
+  if (folder.optional) {
+    exemptToggle.classList.add('visible');
+    exemptLabel.textContent = folder.optionalLabel;
+    const ex = loadExempt();
+    exemptCheck.classList.toggle('checked', !!ex[folderId]);
+    exemptCheck.textContent = ex[folderId] ? '✓' : '';
+    exemptInner.onclick = () => {
+      toggleExempt(folderId);
+      const newEx = loadExempt();
+      exemptCheck.classList.toggle('checked', !!newEx[folderId]);
+      exemptCheck.textContent = newEx[folderId] ? '✓' : '';
+    };
   } else {
-    warnEl.classList.remove('visible');
+    exemptToggle.classList.remove('visible');
+  }
+
+  // Docs attendus
+  const expEl = document.getElementById('fv-expected');
+  if (folder.expectedDocs && folder.expectedDocs.length > 0) {
+    expEl.innerHTML = `<div class="expected-docs-title">Documents à fournir</div>` +
+      folder.expectedDocs.map(d =>
+        `<div class="expected-doc-item"><div class="expected-doc-dot"></div>${d}</div>`
+      ).join('');
+    expEl.style.display = 'block';
+  } else if (folder.noGauge) {
+    expEl.innerHTML = `<div class="expected-docs-title">Section libre</div>
+      <div class="expected-doc-item"><div class="expected-doc-dot"></div>Ajoute tout document utile pour ton dossier</div>`;
+    expEl.style.display = 'block';
+  } else {
+    expEl.style.display = 'none';
   }
 
   // Switch de vue
