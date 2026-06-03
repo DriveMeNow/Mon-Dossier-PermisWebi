@@ -1,0 +1,16 @@
+# Serveur de développement local — ne pas commiter
+server.js
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Variables d'environnement
+.env
+.env.local
+.env.production

@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#FFBE00">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mon Dossier">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <title>Mon Dossier — Permis Webi</title>
+  <style>
+    :root {
+      --bg: #f8f2e5;
+      --surface: #ffffff;
+      --yellow: #FFBE00;
+      --yellow-h: #f5a623;
+      --yellow-soft: rgba(255,190,0,0.12);
+      --dark: #07111f;
+      --text: #1a1a2e;
+      --muted: #7a7060;
+      --border: #e8e0d0;
+      --danger: #e5383b;
+      --danger-soft: rgba(229,56,59,0.10);
+      --ok: #1d9e75;
+      --ok-soft: rgba(29,158,117,0.10);
+      --warn-soft: rgba(255,140,0,0.12);
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      --shadow-md: 0 6px 24px rgba(0,0,0,0.11);
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow-x: hidden; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ── HEADER ── */
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .app-header img { height: 36px; width: 36px; border-radius: 50%; }
+    .app-header-title { font-size: 17px; font-weight: 800; color: var(--text); flex: 1; }
+    .app-header-sub { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 1px; }
+    .btn-back {
+      background: none; border: none; cursor: pointer;
+      font-size: 22px; color: var(--dark); padding: 4px 8px 4px 0;
+      display: flex; align-items: center;
+    }
+
+    /* ── VIEWS ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── HOME ── */
+    .home-wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 40px; }
+
+    /* Progress ring */
+    .ring-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      margin-bottom: 28px;
+    }
+    .ring-svg { overflow: visible; }
+    .ring-bg { fill: none; stroke: var(--border); stroke-width: 16; }
+    .ring-fill {
+      fill: none; stroke: var(--yellow); stroke-width: 16;
+      stroke-linecap: round;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.8s cubic-bezier(.4,0,.2,1);
+    }
+    .ring-center-pct {
+      font-size: 34px; font-weight: 800; fill: var(--text);
+      text-anchor: middle; dominant-baseline: middle;
+    }
+    .ring-center-label {
+      font-size: 11px; font-weight: 700; fill: var(--muted);
+      text-anchor: middle;
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .ring-subtitle {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      margin-top: 10px; text-align: center;
+    }
+    .ring-subtitle strong { color: var(--text); }
+
+    /* Folder grid */
+    .folder-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .folder-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 14px 14px;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s, border-color .15s;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .folder-card:active { transform: scale(0.97); }
+    .folder-card.has-docs { border-color: rgba(255,190,0,0.5); }
+    .folder-card-top { display: flex; align-items: center; justify-content: space-between; }
+    .folder-emoji { font-size: 26px; line-height: 1; }
+    .folder-count {
+      background: var(--yellow-soft);
+      border: 1px solid rgba(255,190,0,0.35);
+      border-radius: 50px;
+      padding: 3px 10px;
+      font-size: 11px; font-weight: 800; color: var(--dark);
+      min-width: 28px; text-align: center;
+    }
+    .folder-count.empty { background: transparent; border-color: var(--border); color: var(--muted); }
+    .folder-name { font-size: 12px; font-weight: 800; color: var(--text); line-height: 1.3; }
+    .folder-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+    /* Local storage notice */
+    .local-notice {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      margin-top: 20px;
+      font-size: 12px; color: var(--muted); line-height: 1.6;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .local-notice-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── FOLDER VIEW ── */
+    .folder-view-wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+    .folder-view-header {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+    }
+    .folder-view-emoji { font-size: 32px; }
+    .folder-view-info { flex: 1; }
+    .folder-view-title { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .folder-view-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    /* Warning banner */
+    .folder-warning {
+      background: rgba(255,140,0,0.10);
+      border: 1px solid rgba(255,140,0,0.35);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      font-size: 12px; color: #92400e; line-height: 1.6;
+      margin-bottom: 16px; display: none;
+    }
+    .folder-warning.visible { display: block; }
+
+    /* Add button */
+    .btn-add-doc {
+      width: 100%;
+      background: var(--yellow);
+      color: var(--dark);
+      border: none;
+      border-radius: 50px;
+      padding: 14px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px; font-weight: 800;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(255,190,0,0.3);
+      -webkit-tap-highlight-color: transparent;
+      transition: background .2s, transform .1s;
+    }
+    .btn-add-doc:active { background: var(--yellow-h); transform: scale(0.98); }
+
+    /* Empty state */
+    .folder-empty {
+      text-align: center; padding: 48px 20px;
+      color: var(--muted); font-size: 14px; line-height: 1.7;
+      display: none;
+    }
+    .folder-empty.visible { display: block; }
+    .folder-empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* Photo grid */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .photo-thumb {
+      aspect-ratio: 1;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      background: var(--border);
+      box-shadow: var(--shadow);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .photo-thumb img {
+      width: 100%; height: 100%; object-fit: cover;
+      transition: transform .2s;
+    }
+    .photo-thumb:active img { transform: scale(0.96); }
+    .photo-thumb-date {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.55));
+      color: #fff; font-size: 9px; font-weight: 700;
+      padding: 8px 6px 5px; line-height: 1;
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-img-wrap {
+      flex: 1; width: 100%;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+    .modal-img-wrap img {
+      max-width: 100%; max-height: 100%;
+      object-fit: contain; border-radius: 10px;
+    }
+    .modal-actions {
+      width: 100%; padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+      display: flex; gap: 12px;
+    }
+    .btn-modal-close {
+      flex: 1; background: rgba(255,255,255,0.12); border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 50px; padding: 13px; color: #fff;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-modal-delete {
+      flex: 1; background: rgba(229,56,59,0.15); border: 1.5px solid rgba(229,56,59,0.4);
+      border-radius: 50px; padding: 13px; color: #fca5a5;
+      font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ── INSTALL BANNER ── */
+    .install-banner {
+      position: fixed; bottom: calc(16px + env(safe-area-inset-bottom));
+      left: 16px; right: 16px;
+      background: var(--dark); color: #fff;
+      border-radius: var(--radius); padding: 14px 16px;
+      display: none; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-md); z-index: 200;
+    }
+    .install-banner.visible { display: flex; }
+    .install-banner-text { flex: 1; font-size: 12px; line-height: 1.5; }
+    .install-banner-text strong { font-size: 13px; }
+    .btn-install {
+      background: var(--yellow); color: var(--dark); border: none;
+      border-radius: 50px; padding: 9px 16px;
+      font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 800;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn-banner-close {
+      background: none; border: none; color: rgba(255,255,255,0.5);
+      font-size: 20px; cursor: pointer; padding: 0 4px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 360px) {
+      .folder-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .folder-card { padding: 12px 10px; }
+      .folder-emoji { font-size: 22px; }
+      .folder-name { font-size: 11px; }
+    }
+    @media (min-width: 480px) {
+      .home-wrap, .folder-view-wrap { padding: 28px 24px 48px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header" id="app-header">
+  <button class="btn-back" id="btn-back" style="display:none" aria-label="Retour">←</button>
+  <img src="https://d1yei2z3i6k35z.cloudfront.net/13456335/687fb09be66ff_logorondfinalvolantcl%C3%A9.png"
+       alt="Permis Webi" id="header-logo">
+  <div>
+    <div class="app-header-title" id="header-title">Mon Dossier</div>
+    <div class="app-header-sub" id="header-sub">Permis Webi</div>
+  </div>
+</header>
+
+<!-- ══ VUE ACCUEIL ══ -->
+<div class="view active" id="view-home">
+  <div class="home-wrap">
+
+    <!-- Jauge de progression -->
+    <div class="ring-wrap">
+      <svg class="ring-svg" id="progress-svg" width="180" height="180" viewBox="0 0 180 180">
+        <circle class="ring-bg" cx="90" cy="90" r="74"/>
+        <circle class="ring-fill" id="ring-fill" cx="90" cy="90" r="74"
+                stroke-dasharray="464.9" stroke-dashoffset="464.9"/>
+        <text class="ring-center-pct" id="ring-pct" x="90" y="83">0%</text>
+        <text class="ring-center-label" x="90" y="103">complété</text>
+      </svg>
+      <p class="ring-subtitle" id="ring-sub">
+        <strong>0</strong> dossier sur <strong>8</strong> contient des documents
+      </p>
+    </div>
+
+    <!-- Grille des dossiers -->
+    <div class="folder-grid" id="folder-grid"></div>
+
+    <!-- Notice stockage local -->
+    <div class="local-notice">
+      <span class="local-notice-icon">📱</span>
+      <span>Tes documents sont stockés <strong>uniquement sur cet appareil</strong>.
+      Ils ne sont ni envoyés ni partagés. Pour ne pas les perdre lors d'un changement de téléphone,
+      pense à les sauvegarder dans tes photos ou ton espace cloud.</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ VUE DOSSIER ══ -->
+<div class="view" id="view-folder">
+  <div class="folder-view-wrap">
+
+    <div class="folder-view-header">
+      <span class="folder-view-emoji" id="fv-emoji"></span>
+      <div class="folder-view-info">
+        <div class="folder-view-title" id="fv-title"></div>
+        <div class="folder-view-desc" id="fv-desc"></div>
+      </div>
+    </div>
+
+    <div class="folder-warning" id="fv-warning"></div>
+
+    <button class="btn-add-doc" id="btn-add-doc">
+      📷 Ajouter un document
+    </button>
+
+    <div class="folder-empty" id="folder-empty">
+      <div class="folder-empty-icon">📂</div>
+      <div>Aucun document pour l'instant.<br>Appuie sur le bouton pour en ajouter.</div>
+    </div>
+
+    <div class="photo-grid" id="photo-grid"></div>
+
+  </div>
+</div>
+
+<!-- ══ MODAL PLEIN ÉCRAN ══ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-img-wrap">
+    <img id="modal-img" src="" alt="Document">
+  </div>
+  <div class="modal-actions">
+    <button class="btn-modal-close" id="btn-modal-close">✕ Fermer</button>
+    <button class="btn-modal-delete" id="btn-modal-delete">🗑 Supprimer</button>
+  </div>
+</div>
+
+<!-- Input fichier caché -->
+<input type="file" id="file-input" accept="image/*" capture="environment" style="display:none">
+
+<!-- ══ BANDEAU RGPD (premier lancement) ══ -->
+<div id="rgpd-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:500;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:20px 20px 0 0;padding:28px 20px calc(24px + env(safe-area-inset-bottom));max-width:480px;width:100%;box-shadow:0 -8px 40px rgba(0,0,0,0.15)">
+    <div style="font-size:22px;margin-bottom:12px">🔒</div>
+    <div style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:10px">Tes données restent sur ton téléphone</div>
+    <div style="font-size:13px;color:#7a7060;line-height:1.7;margin-bottom:20px">
+      <strong style="color:#1a1a2e">Mon Dossier</strong> stocke tes photos de documents
+      <strong style="color:#1a1a2e">uniquement sur cet appareil</strong>, dans la mémoire
+      de ton navigateur (IndexedDB). Aucune donnée n'est envoyée à Permis Webi
+      ni à aucun serveur. Tes documents ne quittent jamais ton téléphone.<br><br>
+      Conformément au RGPD, tu peux supprimer l'ensemble de tes données à tout
+      moment en supprimant les données du site dans les paramètres de ton navigateur.
+    </div>
+    <button id="rgpd-ok" style="width:100%;background:#FFBE00;color:#07111f;border:none;border-radius:50px;padding:15px;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;cursor:pointer">
+      ✓ J'ai compris — Accéder à Mon Dossier
+    </button>
+  </div>
+</div>
+
+<!-- Bannière installation PWA -->
+<div class="install-banner" id="install-banner">
+  <div class="install-banner-text">
+    <strong>Installer Mon Dossier</strong><br>
+    Ajoute l'app à ton écran d'accueil pour un accès rapide.
+  </div>
+  <button class="btn-install" id="btn-install">Installer</button>
+  <button class="btn-banner-close" id="btn-banner-close">✕</button>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   DONNÉES — DOSSIERS (noms provisoires)
+══════════════════════════════════════════════ */
+const FOLDERS = [
+  {
+    id: 'decision',
+    label: 'La décision',
+    emoji: '📋',
+    desc: 'Arrêté, jugement, lettre officielle...',
+    warning: null
+  },
+  {
+    id: 'psycho',
+    label: 'Psychotechniques',
+    emoji: '🧪',
+    desc: 'Attestation de résultats du centre agréé',
+    warning: '⚠️ Valables 6 mois. Vérifie la date avant ta visite médicale.'
+  },
+  {
+    id: 'medical',
+    label: 'Visite médicale',
+    emoji: '🏥',
+    desc: 'Certificat médical, avis commission + analyses',
+    warning: '⚠️ Les analyses biologiques ne sont valables que 15 jours après le prélèvement. Vérifie la date avant ton rendez-vous.'
+  },
+  {
+    id: 'stage',
+    label: 'Stage',
+    emoji: '🏛️',
+    desc: 'Attestation de stage (si ordonné par le juge)',
+    warning: null
+  },
+  {
+    id: 'ants',
+    label: 'ANTS & NEPH',
+    emoji: '🪪',
+    desc: 'AIPC, récépissé d\'inscription ANTS',
+    warning: null
+  },
+  {
+    id: 'code',
+    label: 'Code de la route',
+    emoji: '📝',
+    desc: 'Réussite à l\'examen, convocation',
+    warning: '✓ Le code est valable 5 ans.'
+  },
+  {
+    id: 'examen',
+    label: 'Examen pratique',
+    emoji: '🚗',
+    desc: 'Convocation, CEPC (permis provisoire)',
+    warning: null
+  },
+  {
+    id: 'permis',
+    label: 'Mon permis',
+    emoji: '🏆',
+    desc: 'Titre sécurisé du permis de conduire',
+    warning: null
+  }
+];
+
+/* ══════════════════════════════════════════════
+   INDEXEDDB
+══════════════════════════════════════════════ */
+const DB_NAME = 'mon-dossier-pw';
+const DB_VER  = 1;
+const STORE   = 'documents';
+let db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        const s = d.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        s.createIndex('folderId', 'folderId', { unique: false });
+      }
+    };
+    req.onsuccess = e => res(e.target.result);
+    req.onerror   = e => rej(e.target.error);
+  });
+}
+
+function dbGetByFolder(folderId) {
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(STORE, 'readonly');
+    const idx = tx.objectStore(STORE).index('folderId');
+    const req = idx.getAll(folderId);
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+function dbGetAllCounts() {
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => {
+      const c = {};
+      req.result.forEach(d => { c[d.folderId] = (c[d.folderId] || 0) + 1; });
+      res(c);
+    };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbAdd(doc) {
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).add(doc);
+    req.onsuccess = () => res(req.result);
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((res, rej) => {
+    const tx  = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).delete(id);
+    req.onsuccess = () => res();
+    req.onerror   = () => rej(req.error);
+  });
+}
+
+/* ══════════════════════════════════════════════
+   COMPRESSION IMAGE
+══════════════════════════════════════════════ */
+function compressImage(file, maxW = 1400, quality = 0.85) {
+  return new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(res, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ══════════════════════════════════════════════
+   ÉTAT APP
+══════════════════════════════════════════════ */
+let currentFolder = null;
+let modalDocId    = null;
+
+/* ══════════════════════════════════════════════
+   RENDU ACCUEIL
+══════════════════════════════════════════════ */
+async function renderHome() {
+  const counts = await dbGetAllCounts();
+  const filled = FOLDERS.filter(f => (counts[f.id] || 0) > 0).length;
+  const pct    = Math.round((filled / FOLDERS.length) * 100);
+  const circ   = 2 * Math.PI * 74; // r=74
+
+  // Mise à jour jauge
+  document.getElementById('ring-pct').textContent = pct + '%';
+  document.getElementById('ring-fill').style.strokeDashoffset =
+    circ * (1 - filled / FOLDERS.length);
+  document.getElementById('ring-sub').innerHTML =
+    `<strong>${filled}</strong> dossier${filled > 1 ? 's' : ''} sur <strong>${FOLDERS.length}</strong> contien${filled > 1 ? 'nent' : 't'} des documents`;
+
+  // Grille
+  const grid = document.getElementById('folder-grid');
+  grid.innerHTML = '';
+  FOLDERS.forEach(f => {
+    const count = counts[f.id] || 0;
+    const card  = document.createElement('div');
+    card.className = 'folder-card' + (count > 0 ? ' has-docs' : '');
+    card.innerHTML = `
+      <div class="folder-card-top">
+        <span class="folder-emoji">${f.emoji}</span>
+        <span class="folder-count ${count === 0 ? 'empty' : ''}">
+          ${count === 0 ? '—' : count + ' doc' + (count > 1 ? 's' : '')}
+        </span>
+      </div>
+      <div class="folder-name">${f.label}</div>
+      <div class="folder-desc">${f.desc}</div>`;
+    card.addEventListener('click', () => openFolder(f.id));
+    grid.appendChild(card);
+  });
+}
+
+/* ══════════════════════════════════════════════
+   NAVIGATION DOSSIER
+══════════════════════════════════════════════ */
+async function openFolder(folderId) {
+  currentFolder = folderId;
+  const folder = FOLDERS.find(f => f.id === folderId);
+
+  // Header
+  document.getElementById('btn-back').style.display = 'flex';
+  document.getElementById('header-title').textContent = folder.label;
+  document.getElementById('header-sub').textContent = 'Mon Dossier · Permis Webi';
+
+  // Infos dossier
+  document.getElementById('fv-emoji').textContent = folder.emoji;
+  document.getElementById('fv-title').textContent = folder.label;
+  document.getElementById('fv-desc').textContent = folder.desc;
+
+  // Warning
+  const warnEl = document.getElementById('fv-warning');
+  if (folder.warning) {
+    warnEl.textContent = folder.warning;
+    warnEl.classList.add('visible');
+  } else {
+    warnEl.classList.remove('visible');
+  }
+
+  // Switch de vue
+  document.getElementById('view-home').classList.remove('active');
+  document.getElementById('view-folder').classList.add('active');
+
+  await renderFolderDocs(folderId);
+}
+
+function goHome() {
+  currentFolder = null;
+  document.getElementById('btn-back').style.display = 'none';
+  document.getElementById('header-title').textContent = 'Mon Dossier';
+  document.getElementById('header-sub').textContent = 'Permis Webi';
+  document.getElementById('view-folder').classList.remove('active');
+  document.getElementById('view-home').classList.add('active');
+  renderHome();
+}
+
+/* ══════════════════════════════════════════════
+   RENDU PHOTOS DU DOSSIER
+══════════════════════════════════════════════ */
+async function renderFolderDocs(folderId) {
+  const docs  = await dbGetByFolder(folderId);
+  const grid  = document.getElementById('photo-grid');
+  const empty = document.getElementById('folder-empty');
+
+  grid.innerHTML = '';
+
+  if (docs.length === 0) {
+    empty.classList.add('visible');
+    return;
+  }
+
+  empty.classList.remove('visible');
+
+  docs.sort((a, b) => b.timestamp - a.timestamp).forEach(doc => {
+    const cell = document.createElement('div');
+    cell.className = 'photo-thumb';
+    const date = new Date(doc.timestamp);
+    const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    cell.innerHTML = `
+      <img src="${doc.data}" alt="Document" loading="lazy">
+      <div class="photo-thumb-date">${dateStr}</div>`;
+    cell.addEventListener('click', () => openModal(doc));
+    grid.appendChild(cell);
+  });
+}
+
+/* ══════════════════════════════════════════════
+   AJOUT DOCUMENT (CAMERA / FICHIER)
+══════════════════════════════════════════════ */
+document.getElementById('btn-add-doc').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('btn-add-doc');
+  btn.textContent = '⏳ Traitement...';
+  btn.disabled = true;
+
+  try {
+    const blob   = await compressImage(file);
+    const base64 = await blobToBase64(blob);
+    await dbAdd({
+      folderId:  currentFolder,
+      timestamp: Date.now(),
+      name:      file.name,
+      data:      base64
+    });
+    await renderFolderDocs(currentFolder);
+  } catch (err) {
+    console.error(err);
+    alert('Erreur lors de l\'ajout du document. Réessaie.');
+  } finally {
+    btn.innerHTML = '📷 Ajouter un document';
+    btn.disabled = false;
+    e.target.value = '';
+  }
+});
+
+/* ══════════════════════════════════════════════
+   MODAL PLEIN ÉCRAN
+══════════════════════════════════════════════ */
+function openModal(doc) {
+  modalDocId = doc.id;
+  document.getElementById('modal-img').src = doc.data;
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+document.getElementById('btn-modal-close').addEventListener('click', closeModal);
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('modal-img').src = '';
+  document.body.style.overflow = '';
+  modalDocId = null;
+}
+
+document.getElementById('btn-modal-delete').addEventListener('click', async () => {
+  if (!confirm('Supprimer ce document ? Cette action est irréversible.')) return;
+  await dbDelete(modalDocId);
+  closeModal();
+  await renderFolderDocs(currentFolder);
+});
+
+/* ══════════════════════════════════════════════
+   NAVIGATION — BOUTON RETOUR
+══════════════════════════════════════════════ */
+document.getElementById('btn-back').addEventListener('click', goHome);
+
+// Bouton retour natif du téléphone (Android)
+window.addEventListener('popstate', () => {
+  if (currentFolder) { history.pushState(null, '', location.href); goHome(); }
+});
+history.pushState(null, '', location.href);
+
+/* ══════════════════════════════════════════════
+   PWA — INSTALLATION
+══════════════════════════════════════════════ */
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').classList.add('visible');
+});
+
+document.getElementById('btn-install').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const choice = await deferredPrompt.userChoice;
+  if (choice.outcome === 'accepted') {
+    document.getElementById('install-banner').classList.remove('visible');
+  }
+  deferredPrompt = null;
+});
+
+document.getElementById('btn-banner-close').addEventListener('click', () => {
+  document.getElementById('install-banner').classList.remove('visible');
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('visible');
+  deferredPrompt = null;
+});
+
+/* ══════════════════════════════════════════════
+   SERVICE WORKER
+══════════════════════════════════════════════ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(console.error);
+}
+
+/* ══════════════════════════════════════════════
+   RGPD — PREMIER LANCEMENT
+══════════════════════════════════════════════ */
+function initRGPD() {
+  const KEY = 'md_rgpd_v1';
+  if (!localStorage.getItem(KEY)) {
+    const overlay = document.getElementById('rgpd-overlay');
+    overlay.style.display = 'flex';
+    document.getElementById('rgpd-ok').addEventListener('click', () => {
+      localStorage.setItem(KEY, JSON.stringify({ date: new Date().toISOString() }));
+      overlay.style.display = 'none';
+    });
+  }
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+(async () => {
+  db = await openDB();
+  initRGPD();
+  await renderHome();
+})();
+</script>
+</body>
+</html>
