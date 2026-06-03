@@ -333,6 +333,72 @@
       font-size: 20px; cursor: pointer; padding: 0 4px;
     }
 
+    /* ── TIMELINE ── */
+    .timeline-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 16px 8px;
+      margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .timeline-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; margin-bottom: 4px; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .timeline-toggle-title {
+      font-size: 13px; font-weight: 800; color: var(--text);
+    }
+    .timeline-toggle-arrow {
+      font-size: 11px; color: var(--muted); transition: transform .25s;
+    }
+    .timeline-toggle-arrow.open { transform: rotate(180deg); }
+    .timeline-list { display: none; margin-top: 12px; }
+    .timeline-list.open { display: block; }
+    .tl-item { display: flex; gap: 12px; }
+    .tl-left { display: flex; flex-direction: column; align-items: center; width: 28px; flex-shrink: 0; }
+    .tl-dot {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800;
+    }
+    .dot-pending  { background: var(--border); color: var(--muted); }
+    .dot-upcoming { background: rgba(255,190,0,0.2); border: 2px solid var(--yellow); color: var(--dark); }
+    .dot-done     { background: var(--ok); color: #fff; }
+    .dot-warn     { background: rgba(255,140,0,0.15); border: 2px solid #f59e0b; color: #92400e; }
+    .dot-exempt   { background: var(--border); color: var(--muted); font-size: 13px; }
+    .tl-line { flex: 1; width: 2px; background: var(--border); min-height: 10px; margin: 3px 0; }
+    .tl-content {
+      flex: 1; padding-bottom: 14px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tl-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .tl-emoji { font-size: 14px; }
+    .tl-name { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; line-height: 1.3; }
+    .tl-status { font-size: 10px; font-weight: 800; border-radius: 50px; padding: 2px 8px; white-space: nowrap; }
+    .st-done   { background: var(--ok-soft); color: var(--ok); }
+    .st-warn   { background: rgba(245,158,11,0.12); color: #92400e; }
+    .st-exempt { background: var(--border); color: var(--muted); }
+    .tl-date-row { margin-top: 5px; }
+    .tl-date-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; font-weight: 700; border-radius: 50px;
+      padding: 3px 10px; cursor: pointer;
+    }
+    .chip-done   { background: var(--ok-soft); color: var(--ok); }
+    .chip-future { background: rgba(255,190,0,0.12); color: #92400e; }
+    .chip-warn   { background: rgba(245,158,11,0.15); color: #92400e; }
+    .tl-date-add {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      cursor: pointer; display: inline-block; padding: 3px 0;
+    }
+    .tl-date-add:hover { color: var(--yellow-h); }
+    .tl-date-input {
+      display: none; margin-top: 6px; width: 100%;
+      border: 1.5px solid var(--yellow); border-radius: 8px;
+      padding: 7px 10px; font-family: 'Montserrat', sans-serif;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      background: #fff; outline: none;
+    }
+
     /* ── RESPONSIVE ── */
     @media (max-width: 360px) {
       .folder-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -374,6 +440,15 @@
       <p class="ring-subtitle" id="ring-sub">
         <strong>0</strong> dossier sur <strong>8</strong> contient des documents
       </p>
+    </div>
+
+    <!-- Timeline feuille de route -->
+    <div class="timeline-wrap">
+      <div class="timeline-toggle" id="tl-toggle">
+        <span class="timeline-toggle-title">📅 Ma feuille de route</span>
+        <span class="timeline-toggle-arrow" id="tl-arrow">▼</span>
+      </div>
+      <div class="timeline-list" id="timeline-list"></div>
     </div>
 
     <!-- Grille des dossiers -->
@@ -485,7 +560,8 @@ const FOLDERS = [
     warning: null,
     expectedDocs: ['Document de décision (lettre, jugement ou arrêté)'],
     freeCount: true,
-    optional: false
+    optional: false,
+    hasDate: false
   },
   {
     id: 'psycho',
@@ -495,26 +571,8 @@ const FOLDERS = [
     warning: '⚠️ Résultats valables 6 mois. Vérifie la date avant ta visite médicale.',
     expectedDocs: ['Convocation au bilan psychotechnique', 'Résultats du bilan psychotechnique'],
     optional: true,
-    optionalLabel: 'Non requis dans mon cas (pas d\'alcool/stups et suspension < 6 mois)'
-  },
-  {
-    id: 'medical',
-    label: 'Visite médicale',
-    emoji: '🏥',
-    desc: 'Convocation + certificat médical (cerfa)',
-    warning: null,
-    expectedDocs: ['Convocation à la visite médicale', 'Certificat médical d\'aptitude (cerfa signé)'],
-    optional: false
-  },
-  {
-    id: 'analyses',
-    label: 'Analyses biologiques',
-    emoji: '🔬',
-    desc: 'Résultats des analyses sang / urine',
-    warning: '⚠️ Valables 15 jours seulement après le prélèvement.',
-    expectedDocs: ['Résultats des analyses biologiques'],
-    optional: true,
-    optionalLabel: 'Non requises dans mon cas'
+    optionalLabel: 'Non requis dans mon cas (pas d\'alcool/stups et suspension < 6 mois)',
+    hasDate: true
   },
   {
     id: 'stage',
@@ -524,16 +582,59 @@ const FOLDERS = [
     warning: null,
     expectedDocs: ['Convocation au stage de sensibilisation', 'Attestation de participation au stage'],
     optional: true,
-    optionalLabel: 'Aucun stage ne m\'a été ordonné par le juge'
+    optionalLabel: 'Aucun stage ne m\'a été ordonné par le juge',
+    hasDate: true
+  },
+  {
+    id: 'analyses',
+    label: 'Analyses biologiques',
+    emoji: '🔬',
+    desc: 'Résultats des analyses sang / urine',
+    warning: '⚠️ Valables 15 jours seulement après le prélèvement.',
+    expectedDocs: ['Résultats des analyses biologiques'],
+    optional: true,
+    optionalLabel: 'Non requises dans mon cas',
+    hasDate: false
+  },
+  {
+    id: 'medical',
+    label: 'Visite médicale',
+    emoji: '🏥',
+    desc: 'Convocation + certificat médical (cerfa)',
+    warning: null,
+    expectedDocs: ['Convocation à la visite médicale', 'Certificat médical d\'aptitude (cerfa signé)'],
+    optional: false,
+    hasDate: true
+  },
+  {
+    id: 'identite',
+    label: 'Pièce d\'identité',
+    emoji: '🪪',
+    desc: 'CNI ou passeport en cours de validité',
+    warning: null,
+    expectedDocs: ['Pièce d\'identité en cours de validité (CNI ou passeport)'],
+    optional: false,
+    hasDate: false
+  },
+  {
+    id: 'domicile',
+    label: 'Justif. de domicile',
+    emoji: '🏠',
+    desc: 'Justificatif de domicile de moins de 3 mois',
+    warning: null,
+    expectedDocs: ['Justificatif de domicile de moins de 3 mois'],
+    optional: false,
+    hasDate: false
   },
   {
     id: 'ants',
     label: 'ANTS & NEPH',
-    emoji: '🪪',
+    emoji: '🏛️',
     desc: 'AIPC, récépissé d\'inscription ANTS',
     warning: null,
     expectedDocs: ['AIPC (Attestation d\'inscription au permis)', 'Récépissé d\'inscription ANTS'],
-    optional: false
+    optional: false,
+    hasDate: false
   },
   {
     id: 'code',
@@ -542,7 +643,8 @@ const FOLDERS = [
     desc: 'Convocation + attestation de réussite',
     warning: '✓ Le code est valable 5 ans.',
     expectedDocs: ['Convocation à l\'examen du code', 'Attestation de réussite au code'],
-    optional: false
+    optional: false,
+    hasDate: true
   },
   {
     id: 'examen',
@@ -551,7 +653,8 @@ const FOLDERS = [
     desc: 'Convocation + CEPC (permis provisoire)',
     warning: null,
     expectedDocs: ['Convocation à l\'examen pratique', 'CEPC ou permis provisoire'],
-    optional: false
+    optional: false,
+    hasDate: true
   },
   {
     id: 'permis',
@@ -560,7 +663,8 @@ const FOLDERS = [
     desc: 'Titre sécurisé du permis de conduire',
     warning: null,
     expectedDocs: ['Titre sécurisé du permis de conduire'],
-    optional: false
+    optional: false,
+    hasDate: false
   },
   {
     id: 'autres',
@@ -571,7 +675,8 @@ const FOLDERS = [
     expectedDocs: [],
     freeCount: true,
     optional: false,
-    noGauge: true
+    noGauge: true,
+    hasDate: false
   }
 ];
 
@@ -587,6 +692,15 @@ function toggleExempt(folderId) {
   const ex = loadExempt();
   ex[folderId] = !ex[folderId];
   saveExempt(ex);
+}
+
+/* ── DATES CONVOCATIONS ── */
+const DATES_KEY = 'md_dates_v1';
+function loadDates() { try { return JSON.parse(localStorage.getItem(DATES_KEY)||'{}'); } catch(e) { return {}; } }
+function saveDate(id, val) {
+  const d = loadDates();
+  if (val) d[id] = val; else delete d[id];
+  localStorage.setItem(DATES_KEY, JSON.stringify(d));
 }
 
 /* Calcul jauge : retourne { done, total } */
@@ -752,6 +866,104 @@ async function renderHome() {
     grid.appendChild(card);
   });
 }
+
+/* ══════════════════════════════════════════════
+   TIMELINE
+══════════════════════════════════════════════ */
+async function renderTimeline() {
+  const counts = await dbGetAllCounts();
+  const exempt = loadExempt();
+  const dates  = loadDates();
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const list   = document.getElementById('timeline-list');
+  list.innerHTML = '';
+
+  const steps = FOLDERS.filter(f => !f.noGauge);
+
+  steps.forEach((f, idx) => {
+    const uploaded = counts[f.id] || 0;
+    const isExempt = !!exempt[f.id];
+    const expected = f.freeCount ? 1 : f.expectedDocs.length;
+    const isDone   = isExempt || uploaded >= expected;
+    const dateVal  = dates[f.id];
+    const dateObj  = dateVal ? new Date(dateVal + 'T00:00:00') : null;
+    const isPast   = dateObj && dateObj <= today;
+    const isFuture = dateObj && dateObj > today;
+    const isLast   = idx === steps.length - 1;
+
+    let dotClass, statusText, statusClass;
+    if (isExempt) {
+      dotClass = 'dot-exempt'; statusText = 'Non requis'; statusClass = 'st-exempt';
+    } else if (isDone) {
+      dotClass = 'dot-done'; statusText = 'Fait ✓'; statusClass = 'st-done';
+    } else if (isPast) {
+      dotClass = 'dot-warn'; statusText = '⚠️ À documenter'; statusClass = 'st-warn';
+    } else if (isFuture) {
+      dotClass = 'dot-upcoming'; statusText = ''; statusClass = '';
+    } else {
+      dotClass = 'dot-pending'; statusText = ''; statusClass = '';
+    }
+
+    const dateLabel = dateObj
+      ? dateObj.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'})
+      : '';
+
+    const item = document.createElement('div');
+    item.className = 'tl-item';
+    item.innerHTML = `
+      <div class="tl-left">
+        <div class="tl-dot ${dotClass}">${isExempt ? '—' : isDone ? '✓' : idx + 1}</div>
+        ${!isLast ? '<div class="tl-line"></div>' : ''}
+      </div>
+      <div class="tl-content" data-fid="${f.id}">
+        <div class="tl-row">
+          <span class="tl-emoji">${f.emoji}</span>
+          <span class="tl-name">${f.label}</span>
+          ${statusText ? `<span class="tl-status ${statusClass}">${statusText}</span>` : ''}
+        </div>
+        ${f.hasDate ? `
+          <div class="tl-date-row">
+            ${dateLabel
+              ? `<span class="tl-date-chip ${isPast ? (isDone ? 'chip-done' : 'chip-warn') : 'chip-future'}" data-date-fid="${f.id}">📅 ${dateLabel}</span>`
+              : `<span class="tl-date-add" data-date-fid="${f.id}">+ Ajouter une date de convocation</span>`}
+          </div>
+          <input type="date" class="tl-date-input" id="tl-date-${f.id}" value="${dateVal || ''}">
+        ` : ''}
+      </div>`;
+    list.appendChild(item);
+  });
+
+  // Chips / boutons date → ouvrir l'input
+  list.querySelectorAll('[data-date-fid]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const inp = document.getElementById('tl-date-' + el.dataset.dateFid);
+      if (inp) inp.showPicker ? inp.showPicker() : inp.focus();
+    });
+  });
+
+  // Changement de date
+  list.querySelectorAll('.tl-date-input').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      saveDate(inp.id.replace('tl-date-', ''), inp.value);
+      await renderTimeline();
+    });
+  });
+
+  // Clic sur le contenu → ouvrir le dossier
+  list.querySelectorAll('.tl-content').forEach(el => {
+    el.addEventListener('click', () => openFolder(el.dataset.fid));
+  });
+}
+
+// Toggle ouverture/fermeture timeline
+document.getElementById('tl-toggle').addEventListener('click', () => {
+  const list  = document.getElementById('timeline-list');
+  const arrow = document.getElementById('tl-arrow');
+  const isOpen = list.classList.toggle('open');
+  arrow.classList.toggle('open', isOpen);
+  if (isOpen) renderTimeline();
+});
 
 /* ══════════════════════════════════════════════
    NAVIGATION DOSSIER
