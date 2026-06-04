@@ -12,7 +12,6 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <title>Mon Dossier — Permis Webi</title>
@@ -1191,13 +1190,9 @@ document.getElementById('btn-modal-save').addEventListener('click', () => {
 ══════════════════════════════════════════════ */
 async function downloadAllDocs() {
   const btn = document.getElementById('btn-download-all');
-  btn.textContent = '⏳ Préparation du ZIP...';
+  btn.textContent = '⏳ Chargement...';
   btn.disabled = true;
   try {
-    if (typeof JSZip === 'undefined') {
-      alert('Cette fonction nécessite une connexion internet. Reconnecte-toi et réessaie.');
-      return;
-    }
     const tx  = db.transaction('documents', 'readonly');
     const all = await new Promise((res, rej) => {
       const req = tx.objectStore('documents').getAll();
@@ -1206,25 +1201,36 @@ async function downloadAllDocs() {
     });
     if (all.length === 0) { alert('Aucun document à télécharger.'); return; }
 
-    const zip = new JSZip();
+    // Construire la liste de fichiers
+    const files = [];
     const counters = {};
-    all.forEach(doc => {
+    for (const doc of all) {
       const folder = FOLDERS.find(f => f.id === doc.folderId);
-      const name   = folder ? folder.label : doc.folderId;
+      const label  = folder ? folder.label.replace(/[^a-z0-9]/gi, '_') : doc.folderId;
       counters[doc.folderId] = (counters[doc.folderId] || 0) + 1;
-      const b64 = doc.data.includes(',') ? doc.data.split(',')[1] : doc.data;
-      zip.folder(name).file(`document_${counters[doc.folderId]}.jpg`, b64, { base64: true });
-    });
+      const fname = `PermisWebi_${label}_${counters[doc.folderId]}.jpg`;
+      const blob  = await fetch(doc.data).then(r => r.blob());
+      files.push(new File([blob], fname, { type: 'image/jpeg' }));
+    }
 
-    const date    = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
-    const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-    const url     = URL.createObjectURL(content);
-    const a       = document.createElement('a');
-    a.href = url; a.download = `Mon-Dossier-PermisWebi_${date}.zip`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    // Tentative Web Share (partage natif multi-fichiers — mobile)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({ files, title: 'Mon Dossier — Permis Webi' });
+    } else {
+      // Fallback : téléchargement image par image
+      for (const file of files) {
+        const url = URL.createObjectURL(file);
+        const a   = document.createElement('a');
+        a.href = url; a.download = file.name; a.click();
+        await new Promise(r => setTimeout(r, 600));
+        URL.revokeObjectURL(url);
+      }
+    }
   } catch(e) {
-    console.error(e);
-    alert('Erreur lors de la création du ZIP. Sauvegarde les documents un par un.');
+    if (e.name !== 'AbortError') {
+      console.error(e);
+      alert('Erreur. Sauvegarde les documents un par un avec le bouton 💾.');
+    }
   } finally {
     btn.textContent = '📦 Télécharger mon dossier complet';
     btn.disabled = false;
